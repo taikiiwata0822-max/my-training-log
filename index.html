@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Training Log</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+    header { background: #1a1a2e; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 20px; }
+    .date-label { font-size: 13px; opacity: 0.7; }
+    nav { display: flex; background: white; border-bottom: 1px solid #e0e0e0; overflow-x: auto; }
+    nav button { flex: 1; min-width: 70px; padding: 12px 6px; border: none; background: none; font-size: 12px; cursor: pointer; color: #666; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+    nav button.active { color: #4f46e5; border-bottom-color: #4f46e5; font-weight: 600; }
+    .page { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+    .page.active { display: block; }
+    .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 16px; margin-bottom: 14px; color: #1a1a2e; }
+    label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; margin-top: 10px; }
+    input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    textarea { resize: vertical; min-height: 60px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .row4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+    .btn { width: 100%; padding: 12px; background: #4f46e5; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 14px; }
+    .btn:hover { background: #4338ca; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #22c55e; color: white; padding: 10px 24px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; }
+    .log-item { border-left: 3px solid #4f46e5; padding: 10px 12px; margin-bottom: 10px; background: #f8f8ff; border-radius: 0 8px 8px 0; }
+    .log-item.meal { border-color: #f59e0b; background: #fffbeb; }
+    .log-item.sleep { border-color: #06b6d4; background: #ecfeff; }
+    .log-item.body { border-color: #10b981; background: #ecfdf5; }
+    .log-item .log-title { font-weight: 600; font-size: 14px; }
+    .log-item .log-meta { font-size: 12px; color: #888; margin-top: 3px; }
+    .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: white; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .stat-card .num { font-size: 24px; font-weight: 700; color: #4f46e5; }
+    .stat-card .stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+    .star-rating { display: flex; gap: 6px; margin-top: 6px; }
+    .star { font-size: 24px; cursor: pointer; opacity: 0.3; }
+    .star.active { opacity: 1; }
+    .chart-wrap { position: relative; height: 200px; margin-top: 10px; }
+    .chart-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .chart-tab { padding: 6px 12px; border: 1px solid #ddd; border-radius: 20px; font-size: 12px; cursor: pointer; background: white; color: #666; }
+    .chart-tab.active { background: #4f46e5; color: white; border-color: #4f46e5; }
+    .body-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .body-stat { background: #f8f8ff; border-radius: 10px; padding: 12px; text-align: center; }
+    .body-stat .val { font-size: 22px; font-weight: 700; color: #4f46e5; }
+    .body-stat .lbl { font-size: 11px; color: #888; margin-top: 2px; }
+    .latest-body { margin-bottom: 16px; }
+    .food-search-wrap { position: relative; }
+    .food-input-row { display: flex; gap: 8px; }
+    .food-input-row input { flex: 1; }
+    .photo-btn { padding: 10px 14px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 8px; font-size: 18px; cursor: pointer; flex-shrink: 0; transition: background 0.2s; }
+    .photo-btn:hover { background: #e0e0e0; }
+    .photo-btn.loading { opacity: 0.5; pointer-events: none; }
+    .food-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 100; max-height: 220px; overflow-y: auto; margin-top: 2px; }
+    .suggestion-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover, .suggestion-item.focused { background: #f0f0ff; }
+    .suggestion-name { font-size: 14px; font-weight: 500; color: #333; }
+    .suggestion-meta { font-size: 11px; color: #888; margin-top: 2px; }
+    .analyzing-badge { display: inline-block; background: #4f46e5; color: white; font-size: 12px; padding: 4px 10px; border-radius: 12px; margin-top: 6px; }
+    .pfc-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .pfc-item { text-align: center; }
+    .pfc-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .pfc-val { font-size: 15px; font-weight: 700; }
+    .pfc-val.protein { color: #4f46e5; }
+    .pfc-val.fat     { color: #f59e0b; }
+    .pfc-val.carbs   { color: #10b981; }
+    .progress-wrap { margin-bottom: 10px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px; }
+    .progress-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+    .progress-fill.kcal    { background: #f59e0b; }
+    .progress-fill.protein { background: #4f46e5; }
+    .progress-fill.fat     { background: #ef4444; }
+    .progress-fill.carbs   { background: #10b981; }
+    .tdee-box { background: #f0f0ff; border-radius: 10px; padding: 14px; text-align: center; margin-bottom: 14px; }
+    .tdee-num { font-size: 28px; font-weight: 700; color: #4f46e5; }
+    .tdee-sub { font-size: 12px; color: #888; margin-top: 2px; }
+    .goal-chips { display: flex; gap: 8px; margin-top: 6px; }
+    .goal-chip { flex: 1; padding: 10px 6px; border: 2px solid #ddd; border-radius: 8px; background: white; font-size: 13px; cursor: pointer; text-align: center; }
+    .goal-chip.active { border-color: #4f46e5; background: #f0f0ff; color: #4f46e5; font-weight: 600; }
+    .setting-section { font-size: 13px; font-weight: 600; color: #4f46e5; margin: 16px 0 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏋️ My Training Log</h1>
+  <span class="date-label" id="today-label"></span>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('dashboard', this)">📊 今日</button>
+  <button onclick="showPage('body', this)">⚖️ 体組成</button>
+  <button onclick="showPage('workout', this)">💪 筋トレ</button>
+  <button onclick="showPage('meal', this)">🍽️ 食事</button>
+  <button onclick="showPage('sleep', this)">😴 睡眠</button>
+  <button onclick="showPage('graph', this)">📈 グラフ</button>
+  <button onclick="showPage('settings', this)">⚙️ 設定</button>
+</nav>
+
+<!-- 設定 -->
+<div id="page-settings" class="page">
+  <div class="card">
+    <h2>⚙️ プロフィール設定</h2>
+    <div class="setting-section">基本情報</div>
+    <div class="row3">
+      <div>
+        <label>年齢</label>
+        <input type="number" id="cfg-age" placeholder="25">
+      </div>
+      <div>
+        <label>身長 (cm)</label>
+        <input type="number" id="cfg-height" placeholder="170">
+      </div>
+      <div>
+        <label>体重 (kg)</label>
+        <input type="number" step="0.1" id="cfg-weight" placeholder="60">
+      </div>
+    </div>
+    <div class="setting-section">活動レベル</div>
+    <select id="cfg-activity">
+      <option value="1.2">座り仕事メイン・ほぼ運動なし</option>
+      <option value="1.375">週1〜3回の軽い運動</option>
+      <option value="1.55" selected>週3〜5回の筋トレ（推奨）</option>
+      <option value="1.725">週6〜7回・高強度</option>
+      <option value="1.9">1日2回練習・肉体労働</option>
+    </select>
+    <div class="setting-section">目標</div>
+    <div class="goal-chips">
+      <button class="goal-chip" id="goal-cut"    onclick="setGoal('cut')">🔥 カット<br><span style="font-size:11px;font-weight:400">-400kcal</span></button>
+      <button class="goal-chip active" id="goal-maintain" onclick="setGoal('maintain')">⚖️ 維持<br><span style="font-size:11px;font-weight:400">TDEE</span></button>
+      <button class="goal-chip" id="goal-bulk"   onclick="setGoal('bulk')">💪 バルク<br><span style="font-size:11px;font-weight:400">+250kcal</span></button>
+    </div>
+    <button class="btn" onclick="saveSettings()">保存して計算する</button>
+  </div>
+  <div class="card" id="tdee-result-card" style="display:none">
+    <h2>📊 計算結果</h2>
+    <div class="tdee-box">
+      <div class="tdee-num" id="res-tdee">-</div>
+      <div class="tdee-sub">TDEE（1日の消費カロリー）</div>
+    </div>
+    <div class="tdee-box" style="background:#ecfdf5">
+      <div class="tdee-num" style="color:#10b981" id="res-target-kcal">-</div>
+      <div class="tdee-sub" id="res-goal-label">目標カロリー</div>
+    </div>
+    <div class="setting-section">1日のPFC目標</div>
+    <div class="pfc-row">
+      <div class="pfc-item">
+        <div class="pfc-label">タンパク質</div>
+        <div class="pfc-val protein" id="res-protein">-g</div>
+        <div style="font-size:11px;color:#aaa" id="res-protein-kcal"></div>
+      </div>
+      <div class="pfc-item">
+        <div class="pfc-label">脂質</div>
+        <div class="pfc-val fat" id="res-fat">-g</div>
+        <div style="font-size:11px;color:#aaa" id="res-fat-kcal"></div>
+      </div>
+      <div class="pfc-item">
+        <div class="pfc-label">炭水化物</div>
+        <div class="pfc-val carbs" id="res-carbs">-g</div>
+        <div style="font-size:11px;color:#aaa" id="res-carbs-kcal"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ダッシュボード -->
+<div id="page-dashboard" class="page active">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="num" id="stat-workout">-</div>
+      <div class="stat-label">筋トレ種目</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-calories">-</div>
+      <div class="stat-label">摂取kcal</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-sleep">-</div>
+      <div class="stat-label">睡眠時間</div>
+    </div>
+  </div>
+  <div class="card" id="pfc-progress-card" style="display:none">
+    <h2>今日の栄養達成率</h2>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>カロリー</span><span id="prog-kcal-txt">-</span></div>
+      <div class="progress-bar"><div class="progress-fill kcal" id="prog-kcal" style="width:0%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>タンパク質</span><span id="prog-protein-txt">-</span></div>
+      <div class="progress-bar"><div class="progress-fill protein" id="prog-protein" style="width:0%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>脂質</span><span id="prog-fat-txt">-</span></div>
+      <div class="progress-bar"><div class="progress-fill fat" id="prog-fat" style="width:0%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>炭水化物</span><span id="prog-carbs-txt">-</span></div>
+      <div class="progress-bar"><div class="progress-fill carbs" id="prog-carbs" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div class="card latest-body" id="latest-body-card" style="display:none">
+    <h2>最新の体組成</h2>
+    <div class="body-grid" id="latest-body-grid"></div>
+  </div>
+  <div class="card">
+    <h2>今日のトレーニング</h2>
+    <div id="today-workouts"><div class="empty">まだ記録なし</div></div>
+  </div>
+  <div class="card">
+    <h2>今日の食事</h2>
+    <div id="today-meals"><div class="empty">まだ記録なし</div></div>
+  </div>
+  <div class="card">
+    <h2>昨夜の睡眠</h2>
+    <div id="today-sleep"><div class="empty">まだ記録なし</div></div>
+  </div>
+</div>
+
+<!-- 体組成記録 -->
+<div id="page-body" class="page">
+  <div class="card">
+    <h2>⚖️ 体組成記録</h2>
+    <label>日付</label>
+    <input type="date" id="b-date">
+    <div class="row">
+      <div>
+        <label>体重 (kg)</label>
+        <input type="number" step="0.1" id="b-weight" placeholder="60.0">
+      </div>
+      <div>
+        <label>体脂肪率 (%)</label>
+        <input type="number" step="0.1" id="b-fat" placeholder="15.0">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>筋肉量 (kg)</label>
+        <input type="number" step="0.1" id="b-muscle" placeholder="48.0">
+      </div>
+      <div>
+        <label>内臓脂肪レベル</label>
+        <input type="number" step="1" id="b-visceral" placeholder="5">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>基礎代謝 (kcal)</label>
+        <input type="number" id="b-bmr" placeholder="1500">
+      </div>
+      <div>
+        <label>体内年齢 (歳)</label>
+        <input type="number" id="b-age" placeholder="25">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>推定骨量 (kg)</label>
+        <input type="number" step="0.1" id="b-bone" placeholder="2.8">
+      </div>
+      <div>
+        <label>体水分率 (%)</label>
+        <input type="number" step="0.1" id="b-water" placeholder="55.0">
+      </div>
+    </div>
+    <label>メモ</label>
+    <textarea id="b-memo" placeholder="体調、気づきなど"></textarea>
+    <button class="btn" onclick="saveBody()">記録する</button>
+  </div>
+  <div class="card">
+    <h2>記録履歴</h2>
+    <div id="body-history"><div class="empty">まだ記録なし</div></div>
+  </div>
+</div>
+
+<!-- トレーニング記録 -->
+<div id="page-workout" class="page">
+  <div class="card">
+    <h2>💪 トレーニング記録</h2>
+    <label>日付</label>
+    <input type="date" id="w-date">
+    <label>種目</label>
+    <input type="text" id="w-exercise" placeholder="例: ベンチプレス、スクワット">
+    <div class="row3">
+      <div>
+        <label>セット数</label>
+        <input type="number" id="w-sets" placeholder="3">
+      </div>
+      <div>
+        <label>回数</label>
+        <input type="number" id="w-reps" placeholder="10">
+      </div>
+      <div>
+        <label>重量(kg)</label>
+        <input type="number" id="w-weight" placeholder="60">
+      </div>
+    </div>
+    <label>メモ</label>
+    <textarea id="w-memo" placeholder="調子、気づきなど"></textarea>
+    <button class="btn" onclick="saveWorkout()">記録する</button>
+  </div>
+</div>
+
+<!-- 食事記録 -->
+<div id="page-meal" class="page">
+  <div class="card">
+    <h2>🍽️ 食事記録</h2>
+    <label>日付</label>
+    <input type="date" id="m-date">
+    <label>食事タイミング</label>
+    <select id="m-type">
+      <option value="朝食">朝食</option>
+      <option value="昼食">昼食</option>
+      <option value="夕食">夕食</option>
+      <option value="間食">間食</option>
+    </select>
+    <label>食べたもの</label>
+    <div class="food-search-wrap">
+      <div class="food-input-row">
+        <input type="text" id="m-food" placeholder="食品名を入力して検索…" autocomplete="off"
+          oninput="onFoodInput(this.value)" onkeydown="onFoodKeydown(event)" onblur="setTimeout(hideSuggestions,150)">
+        <button type="button" class="photo-btn" id="photo-btn" onclick="document.getElementById('photo-input').click()" title="写真で自動解析">📷</button>
+      </div>
+      <div class="food-suggestions" id="food-suggestions" style="display:none"></div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoInput(event)">
+    </div>
+    <div id="gram-row" style="display:none;margin-top:4px">
+      <label>量 (g) — 入力すると自動計算</label>
+      <input type="number" id="m-grams" placeholder="100" oninput="calcFromGrams(this.value)">
+    </div>
+    <label style="margin-top:10px">カロリー (kcal)</label>
+    <input type="number" id="m-calories" placeholder="500">
+    <div class="row3">
+      <div>
+        <label>タンパク質(g)</label>
+        <input type="number" step="0.1" id="m-protein" placeholder="30">
+      </div>
+      <div>
+        <label>脂質(g)</label>
+        <input type="number" step="0.1" id="m-fat" placeholder="10">
+      </div>
+      <div>
+        <label>炭水化物(g)</label>
+        <input type="number" step="0.1" id="m-carb" placeholder="60">
+      </div>
+    </div>
+    <label>メモ</label>
+    <textarea id="m-memo" placeholder="気づきなど"></textarea>
+    <button class="btn" onclick="saveMeal()">記録する</button>
+  </div>
+</div>
+
+<!-- 睡眠記録 -->
+<div id="page-sleep" class="page">
+  <div class="card">
+    <h2>😴 睡眠記録</h2>
+    <label>日付</label>
+    <input type="date" id="s-date">
+    <div class="row">
+      <div>
+        <label>就寝時間</label>
+        <input type="time" id="s-sleep">
+      </div>
+      <div>
+        <label>起床時間</label>
+        <input type="time" id="s-wake">
+      </div>
+    </div>
+    <label>睡眠の質 (1〜5)</label>
+    <div class="star-rating" id="star-rating">
+      <span class="star" onclick="setStar(1)">⭐</span>
+      <span class="star" onclick="setStar(2)">⭐</span>
+      <span class="star" onclick="setStar(3)">⭐</span>
+      <span class="star" onclick="setStar(4)">⭐</span>
+      <span class="star" onclick="setStar(5)">⭐</span>
+    </div>
+    <label>メモ</label>
+    <textarea id="s-memo" placeholder="深く眠れたか、夢を見たかなど"></textarea>
+    <button class="btn" onclick="saveSleep()">記録する</button>
+  </div>
+</div>
+
+<!-- グラフ -->
+<div id="page-graph" class="page">
+  <div class="card">
+    <h2>📈 体組成グラフ</h2>
+    <div class="chart-tabs" id="body-chart-tabs">
+      <button class="chart-tab active" onclick="showBodyChart('weight', this)">体重</button>
+      <button class="chart-tab" onclick="showBodyChart('body_fat_rate', this)">体脂肪率</button>
+      <button class="chart-tab" onclick="showBodyChart('muscle_mass', this)">筋肉量</button>
+      <button class="chart-tab" onclick="showBodyChart('visceral_fat', this)">内臓脂肪</button>
+      <button class="chart-tab" onclick="showBodyChart('bmr', this)">基礎代謝</button>
+      <button class="chart-tab" onclick="showBodyChart('body_age', this)">体内年齢</button>
+      <button class="chart-tab" onclick="showBodyChart('bone_mass', this)">骨量</button>
+      <button class="chart-tab" onclick="showBodyChart('water_rate', this)">水分率</button>
+    </div>
+    <div class="chart-wrap"><canvas id="body-chart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>📈 トレーニングボリューム</h2>
+    <div class="chart-wrap"><canvas id="workout-chart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>📈 摂取カロリー</h2>
+    <div class="chart-wrap"><canvas id="calorie-chart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>📈 睡眠時間</h2>
+    <div class="chart-wrap"><canvas id="sleep-chart"></canvas></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://jrcqoxjcvwxkfjwuywlk.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_oW2kvJqDWdsJxgi7ic-dqw_4S8RZosr';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('today-label').textContent = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+
+  ['w-date', 'm-date', 's-date', 'b-date'].forEach(id => {
+    document.getElementById(id).value = today;
+  });
+
+  let selectedStar = 0;
+  let bodyChartInstance = null;
+  let workoutChartInstance = null;
+  let calorieChartInstance = null;
+  let sleepChartInstance = null;
+  let bodyData = [];
+  let currentBodyKey = 'weight';
+
+  const bodyLabels = {
+    weight: '体重 (kg)', body_fat_rate: '体脂肪率 (%)', muscle_mass: '筋肉量 (kg)',
+    visceral_fat: '内臓脂肪レベル', bmr: '基礎代謝 (kcal)', body_age: '体内年齢 (歳)',
+    bone_mass: '骨量 (kg)', water_rate: '水分率 (%)'
+  };
+  const bodyColors = {
+    weight: '#4f46e5', body_fat_rate: '#ef4444', muscle_mass: '#10b981',
+    visceral_fat: '#f59e0b', bmr: '#8b5cf6', body_age: '#06b6d4',
+    bone_mass: '#ec4899', water_rate: '#3b82f6'
+  };
+
+  function setStar(n) {
+    selectedStar = n;
+    document.querySelectorAll('.star').forEach((s, i) => s.classList.toggle('active', i < n));
+  }
+
+  function showPage(name, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'body') loadBodyHistory();
+    if (name === 'graph') loadGraphs();
+  }
+
+  function showToast(msg, ok = true) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = ok ? '#22c55e' : '#ef4444';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function makeChart(canvasId, labels, data, label, color, instance) {
+    if (instance) instance.destroy();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    return new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data,
+          borderColor: color,
+          backgroundColor: color + '22',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: false, ticks: { font: { size: 11 } } },
+          x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+        }
+      }
+    });
+  }
+
+  function showBodyChart(key, btn) {
+    currentBodyKey = key;
+    document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (!bodyData.length) return;
+    const labels = bodyData.map(d => d.date.slice(5));
+    const values = bodyData.map(d => d[key]);
+    bodyChartInstance = makeChart('body-chart', labels, values, bodyLabels[key], bodyColors[key], bodyChartInstance);
+  }
+
+  async function saveBody() {
+    const data = {
+      date: document.getElementById('b-date').value,
+      weight: parseFloat(document.getElementById('b-weight').value) || null,
+      body_fat_rate: parseFloat(document.getElementById('b-fat').value) || null,
+      muscle_mass: parseFloat(document.getElementById('b-muscle').value) || null,
+      visceral_fat: parseInt(document.getElementById('b-visceral').value) || null,
+      bmr: parseInt(document.getElementById('b-bmr').value) || null,
+      body_age: parseInt(document.getElementById('b-age').value) || null,
+      bone_mass: parseFloat(document.getElementById('b-bone').value) || null,
+      water_rate: parseFloat(document.getElementById('b-water').value) || null,
+      memo: document.getElementById('b-memo').value || null,
+    };
+    if (!data.date) { showToast('日付は必須です', false); return; }
+    const { error } = await sb.from('body_compositions').insert(data);
+    if (error) { showToast('エラー: ' + error.message, false); return; }
+    showToast('体組成を記録しました！');
+    ['b-weight','b-fat','b-muscle','b-visceral','b-bmr','b-age','b-bone','b-water','b-memo'].forEach(id => document.getElementById(id).value = '');
+    loadBodyHistory();
+  }
+
+  async function loadBodyHistory() {
+    const { data } = await sb.from('body_compositions').select('*').order('date', { ascending: false }).limit(30);
+    const el = document.getElementById('body-history');
+    if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
+    el.innerHTML = data.map(d => `
+      <div class="log-item body">
+        <div class="log-title">${d.date}</div>
+        <div class="log-meta">${[
+          d.weight && '体重 '+d.weight+'kg',
+          d.body_fat_rate && '体脂肪 '+d.body_fat_rate+'%',
+          d.muscle_mass && '筋肉 '+d.muscle_mass+'kg',
+          d.visceral_fat && '内臓脂肪 '+d.visceral_fat,
+          d.bmr && '基礎代謝 '+d.bmr+'kcal',
+        ].filter(Boolean).join(' | ')}</div>
+      </div>`).join('');
+  }
+
+  async function saveWorkout() {
+    const data = {
+      date: document.getElementById('w-date').value,
+      exercise: document.getElementById('w-exercise').value,
+      sets: parseInt(document.getElementById('w-sets').value) || null,
+      reps: parseInt(document.getElementById('w-reps').value) || null,
+      weight: parseFloat(document.getElementById('w-weight').value) || null,
+      memo: document.getElementById('w-memo').value || null,
+    };
+    if (!data.date || !data.exercise) { showToast('日付と種目は必須です', false); return; }
+    const { error } = await sb.from('workouts').insert(data);
+    if (error) { showToast('エラー: ' + error.message, false); return; }
+    showToast('トレーニングを記録しました！');
+    ['w-exercise','w-sets','w-reps','w-weight','w-memo'].forEach(id => document.getElementById(id).value = '');
+  }
+
+  async function saveMeal() {
+    const data = {
+      date: document.getElementById('m-date').value,
+      meal_type: document.getElementById('m-type').value,
+      food_name: document.getElementById('m-food').value,
+      calories: parseInt(document.getElementById('m-calories').value) || null,
+      protein: parseFloat(document.getElementById('m-protein').value) || null,
+      fat: parseFloat(document.getElementById('m-fat').value) || null,
+      carbs: parseFloat(document.getElementById('m-carb').value) || null,
+      memo: document.getElementById('m-memo').value || null,
+    };
+    if (!data.date || !data.food_name) { showToast('日付と食べたものは必須です', false); return; }
+    const { error } = await sb.from('meals').insert(data);
+    if (error) { showToast('エラー: ' + error.message, false); return; }
+    showToast('食事を記録しました！');
+    ['m-food','m-calories','m-protein','m-fat','m-carb','m-memo','m-grams'].forEach(id => document.getElementById(id).value = '');
+    selectedFood = null;
+    document.getElementById('gram-row').style.display = 'none';
+  }
+
+  // ── 食品DB（文部科学省 食品成分表ベース、100gあたり） ──
+  const FOODS_DB = [
+    { name: '白米（炊）',         kcal: 168, p: 2.5,  f: 0.3,  c: 37.1 },
+    { name: '玄米（炊）',         kcal: 165, p: 2.8,  f: 1.0,  c: 35.6 },
+    { name: '食パン',             kcal: 264, p: 9.3,  f: 4.4,  c: 49.1 },
+    { name: 'うどん（茹）',       kcal: 105, p: 2.6,  f: 0.4,  c: 22.5 },
+    { name: 'そば（茹）',         kcal: 132, p: 4.8,  f: 1.0,  c: 26.0 },
+    { name: 'パスタ（茹）',       kcal: 165, p: 5.8,  f: 1.0,  c: 33.5 },
+    { name: 'オートミール',       kcal: 380, p: 13.7, f: 5.7,  c: 65.4 },
+    { name: 'さつまいも（蒸）',   kcal: 134, p: 1.2,  f: 0.2,  c: 31.5 },
+    { name: 'じゃがいも（茹）',   kcal: 76,  p: 1.6,  f: 0.1,  c: 17.4 },
+    { name: 'バナナ',             kcal: 86,  p: 1.1,  f: 0.2,  c: 22.5 },
+    { name: '鶏むね肉（皮なし生）',kcal: 116, p: 23.3, f: 1.9,  c: 0   },
+    { name: '鶏むね肉（焼）',     kcal: 108, p: 24.4, f: 1.3,  c: 0   },
+    { name: '鶏もも肉（皮なし）', kcal: 127, p: 19.0, f: 5.0,  c: 0   },
+    { name: 'サラダチキン',       kcal: 113, p: 22.0, f: 2.5,  c: 1.0 },
+    { name: '豚ヒレ',             kcal: 115, p: 22.8, f: 2.4,  c: 0.3 },
+    { name: '豚もも（赤身）',     kcal: 137, p: 20.5, f: 6.0,  c: 0.1 },
+    { name: '牛赤身',             kcal: 176, p: 21.3, f: 10.6, c: 0.1 },
+    { name: 'サーモン（生）',     kcal: 208, p: 20.1, f: 13.6, c: 0   },
+    { name: 'マグロ赤身（生）',   kcal: 125, p: 26.4, f: 1.4,  c: 0.1 },
+    { name: 'サバ缶（水煮）',     kcal: 174, p: 20.9, f: 10.7, c: 0.2 },
+    { name: 'ツナ缶（水煮）',     kcal: 71,  p: 16.0, f: 0.4,  c: 0   },
+    { name: '卵（全卵）',         kcal: 151, p: 12.3, f: 10.3, c: 0.3 },
+    { name: '木綿豆腐',           kcal: 72,  p: 7.0,  f: 4.3,  c: 1.5 },
+    { name: '絹豆腐',             kcal: 56,  p: 5.3,  f: 3.0,  c: 1.7 },
+    { name: '納豆',               kcal: 190, p: 16.5, f: 9.7,  c: 8.6 },
+    { name: 'ギリシャヨーグルト', kcal: 73,  p: 8.7,  f: 3.2,  c: 4.0 },
+    { name: 'カッテージチーズ',   kcal: 105, p: 13.3, f: 4.5,  c: 1.9 },
+    { name: '牛乳',               kcal: 67,  p: 3.3,  f: 3.8,  c: 4.9 },
+    { name: 'えだまめ（茹）',     kcal: 135, p: 11.5, f: 6.1,  c: 8.9 },
+    { name: 'ブロッコリー',       kcal: 33,  p: 4.3,  f: 0.5,  c: 5.2 },
+    { name: 'ほうれん草',         kcal: 23,  p: 2.8,  f: 0.4,  c: 3.1 },
+    { name: 'アボカド',           kcal: 187, p: 2.5,  f: 18.7, c: 0.9 },
+    { name: 'アーモンド',         kcal: 598, p: 19.6, f: 51.8, c: 18.3},
+    { name: 'プロテイン（ホエイ）',kcal: 380, p: 75.0, f: 5.0,  c: 10.0},
+  ];
+
+  let selectedFood = null;
+  let suggestionIndex = -1;
+
+  function onFoodInput(val) {
+    selectedFood = null;
+    document.getElementById('gram-row').style.display = 'none';
+    if (!val.trim()) { hideSuggestions(); return; }
+    const matches = FOODS_DB.filter(f => f.name.includes(val)).slice(0, 8);
+    if (!matches.length) { hideSuggestions(); return; }
+    suggestionIndex = -1;
+    const el = document.getElementById('food-suggestions');
+    el.innerHTML = matches.map((f, i) =>
+      `<div class="suggestion-item" data-i="${i}" onmousedown="selectFood(${i},'${f.name}')">
+        <div class="suggestion-name">${f.name}</div>
+        <div class="suggestion-meta">${f.kcal}kcal / P${f.p}g F${f.f}g C${f.c}g（100gあたり）</div>
+      </div>`
+    ).join('');
+    el._matches = matches;
+    el.style.display = 'block';
+  }
+
+  function onFoodKeydown(e) {
+    const el = document.getElementById('food-suggestions');
+    if (el.style.display === 'none') return;
+    const items = el.querySelectorAll('.suggestion-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      suggestionIndex = Math.min(suggestionIndex + 1, items.length - 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      suggestionIndex = Math.max(suggestionIndex - 1, -1);
+    } else if (e.key === 'Enter' && suggestionIndex >= 0) {
+      e.preventDefault();
+      const f = el._matches[suggestionIndex];
+      selectFood(suggestionIndex, f.name);
+      return;
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+      return;
+    }
+    items.forEach((item, i) => item.classList.toggle('focused', i === suggestionIndex));
+  }
+
+  function selectFood(i, name) {
+    const el = document.getElementById('food-suggestions');
+    selectedFood = el._matches[i];
+    document.getElementById('m-food').value = name;
+    hideSuggestions();
+    document.getElementById('gram-row').style.display = 'block';
+    document.getElementById('m-grams').value = '100';
+    calcFromGrams(100);
+  }
+
+  function hideSuggestions() {
+    document.getElementById('food-suggestions').style.display = 'none';
+  }
+
+  function calcFromGrams(grams) {
+    if (!selectedFood || !grams) return;
+    const r = grams / 100;
+    document.getElementById('m-calories').value = Math.round(selectedFood.kcal * r);
+    document.getElementById('m-protein').value  = Math.round(selectedFood.p * r * 10) / 10;
+    document.getElementById('m-fat').value      = Math.round(selectedFood.f * r * 10) / 10;
+    document.getElementById('m-carb').value     = Math.round(selectedFood.c * r * 10) / 10;
+  }
+
+  async function handlePhotoInput(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const btn = document.getElementById('photo-btn');
+    btn.textContent = '⏳';
+    btn.classList.add('loading');
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        // リサイズして送信（1024px以内）
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1024;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+            else       { w = Math.round(w * MAX / h); h = MAX; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+        };
+        img.onerror = reject;
+        reader.onload = ev => img.src = ev.target.result;
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch('/.netlify/functions/analyze-food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, mimeType: 'image/jpeg' }),
+      });
+
+      if (!res.ok) throw new Error('解析に失敗しました');
+      const data = await res.json();
+
+      if (data.food_name) document.getElementById('m-food').value = data.food_name;
+      if (data.calories)  document.getElementById('m-calories').value = data.calories;
+      if (data.protein)   document.getElementById('m-protein').value  = data.protein;
+      if (data.fat)       document.getElementById('m-fat').value      = data.fat;
+      if (data.carbs)     document.getElementById('m-carb').value     = data.carbs;
+      if (data.memo)      document.getElementById('m-memo').value     = data.memo;
+      selectedFood = null;
+      document.getElementById('gram-row').style.display = 'none';
+      showToast('写真から食事を解析しました！');
+    } catch (err) {
+      showToast('解析エラー: ' + err.message, false);
+    } finally {
+      btn.textContent = '📷';
+      btn.classList.remove('loading');
+      e.target.value = '';
+    }
+  }
+
+  async function saveSleep() {
+    const sleepTime = document.getElementById('s-sleep').value;
+    const wakeTime = document.getElementById('s-wake').value;
+    let hours = null;
+    if (sleepTime && wakeTime) {
+      const [sh, sm] = sleepTime.split(':').map(Number);
+      const [wh, wm] = wakeTime.split(':').map(Number);
+      let diff = (wh * 60 + wm) - (sh * 60 + sm);
+      if (diff < 0) diff += 24 * 60;
+      hours = Math.round(diff / 60 * 10) / 10;
+    }
+    const data = {
+      date: document.getElementById('s-date').value,
+      sleep_time: sleepTime || null,
+      wake_time: wakeTime || null,
+      hours,
+      quality: selectedStar || null,
+      memo: document.getElementById('s-memo').value || null,
+    };
+    if (!data.date) { showToast('日付は必須です', false); return; }
+    const { error } = await sb.from('sleep_logs').insert(data);
+    if (error) { showToast('エラー: ' + error.message, false); return; }
+    showToast('睡眠を記録しました！');
+    ['s-sleep','s-wake','s-memo'].forEach(id => document.getElementById(id).value = '');
+    setStar(0);
+  }
+
+  async function loadDashboard() {
+    // 最新体組成
+    const { data: bodyLatest } = await sb.from('body_compositions').select('*').order('date', { ascending: false }).limit(1);
+    if (bodyLatest?.length) {
+      const b = bodyLatest[0];
+      document.getElementById('latest-body-card').style.display = 'block';
+      const items = [
+        { label: '体重', val: b.weight ? b.weight+'kg' : '-' },
+        { label: '体脂肪率', val: b.body_fat_rate ? b.body_fat_rate+'%' : '-' },
+        { label: '筋肉量', val: b.muscle_mass ? b.muscle_mass+'kg' : '-' },
+        { label: '内臓脂肪', val: b.visceral_fat || '-' },
+        { label: '基礎代謝', val: b.bmr ? b.bmr+'kcal' : '-' },
+        { label: '体内年齢', val: b.body_age ? b.body_age+'歳' : '-' },
+      ];
+      document.getElementById('latest-body-grid').innerHTML = items.map(i =>
+        `<div class="body-stat"><div class="val">${i.val}</div><div class="lbl">${i.label}</div></div>`
+      ).join('');
+    }
+
+    // トレーニング
+    const { data: workouts } = await sb.from('workouts').select('*').eq('date', today).order('created_at');
+    const wEl = document.getElementById('today-workouts');
+    document.getElementById('stat-workout').textContent = workouts?.length || 0;
+    wEl.innerHTML = workouts?.length ? workouts.map(w => `
+      <div class="log-item">
+        <div class="log-title">${w.exercise}</div>
+        <div class="log-meta">${[w.sets && w.sets+'セット', w.reps && w.reps+'回', w.weight && w.weight+'kg'].filter(Boolean).join(' / ')}${w.memo ? ' — '+w.memo : ''}</div>
+      </div>`).join('') : '<div class="empty">まだ記録なし</div>';
+
+    // 食事
+    const { data: meals } = await sb.from('meals').select('*').eq('date', today).order('created_at');
+    const mEl = document.getElementById('today-meals');
+    const totalCal = meals?.reduce((s, m) => s + (m.calories || 0), 0) || 0;
+    document.getElementById('stat-calories').textContent = totalCal || '-';
+    updatePFCProgress(meals || []);
+    mEl.innerHTML = meals?.length ? meals.map(m => `
+      <div class="log-item meal">
+        <div class="log-title">${m.meal_type}: ${m.food_name}</div>
+        <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}</div>
+      </div>`).join('') : '<div class="empty">まだ記録なし</div>';
+
+    // 睡眠
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const { data: sleeps } = await sb.from('sleep_logs').select('*').eq('date', yesterday).order('created_at');
+    const sEl = document.getElementById('today-sleep');
+    if (sleeps?.length) {
+      const s = sleeps[0];
+      document.getElementById('stat-sleep').textContent = s.hours ? s.hours+'h' : '-';
+      sEl.innerHTML = `<div class="log-item sleep">
+        <div class="log-title">${s.sleep_time || '?'} 〜 ${s.wake_time || '?'}（${s.hours ? s.hours+'時間' : '-'}）</div>
+        <div class="log-meta">${s.quality ? '⭐'.repeat(s.quality) : ''}${s.memo ? ' '+s.memo : ''}</div>
+      </div>`;
+    } else {
+      document.getElementById('stat-sleep').textContent = '-';
+      sEl.innerHTML = '<div class="empty">まだ記録なし</div>';
+    }
+  }
+
+  async function loadGraphs() {
+    // 体組成グラフ
+    const { data: bd } = await sb.from('body_compositions').select('*').order('date').limit(60);
+    bodyData = bd || [];
+    if (bodyData.length) {
+      showBodyChart(currentBodyKey, null);
+    }
+
+    // トレーニングボリューム（日別）
+    const { data: wd } = await sb.from('workouts').select('date, sets, reps, weight').order('date').limit(100);
+    if (wd?.length) {
+      const volMap = {};
+      wd.forEach(w => {
+        const vol = (w.sets || 1) * (w.reps || 1) * (w.weight || 0);
+        volMap[w.date] = (volMap[w.date] || 0) + vol;
+      });
+      const wLabels = Object.keys(volMap).map(d => d.slice(5));
+      const wVals = Object.values(volMap);
+      workoutChartInstance = makeChart('workout-chart', wLabels, wVals, 'ボリューム(kg)', '#4f46e5', workoutChartInstance);
+    }
+
+    // カロリー（日別）
+    const { data: md } = await sb.from('meals').select('date, calories').order('date').limit(100);
+    if (md?.length) {
+      const calMap = {};
+      md.forEach(m => { calMap[m.date] = (calMap[m.date] || 0) + (m.calories || 0); });
+      calorieChartInstance = makeChart('calorie-chart', Object.keys(calMap).map(d => d.slice(5)), Object.values(calMap), 'kcal', '#f59e0b', calorieChartInstance);
+    }
+
+    // 睡眠時間
+    const { data: sd } = await sb.from('sleep_logs').select('date, hours').order('date').limit(60);
+    if (sd?.length) {
+      sleepChartInstance = makeChart('sleep-chart', sd.map(s => s.date.slice(5)), sd.map(s => s.hours), '時間', '#06b6d4', sleepChartInstance);
+    }
+  }
+
+  // ── 設定 ──
+  let currentGoal = 'maintain';
+
+  function setGoal(goal) {
+    currentGoal = goal;
+    ['cut','maintain','bulk'].forEach(g =>
+      document.getElementById('goal-' + g).classList.toggle('active', g === goal)
+    );
+  }
+
+  function saveSettings() {
+    const age    = parseInt(document.getElementById('cfg-age').value);
+    const height = parseFloat(document.getElementById('cfg-height').value);
+    const weight = parseFloat(document.getElementById('cfg-weight').value);
+    const act    = parseFloat(document.getElementById('cfg-activity').value);
+    if (!age || !height || !weight) { showToast('年齢・身長・体重を入力してください', false); return; }
+
+    // Mifflin-St Jeor（男性）
+    const bmr  = Math.round(10 * weight + 6.25 * height - 5 * age + 5);
+    const tdee = Math.round(bmr * act);
+    const goalOffset = { cut: -400, maintain: 0, bulk: 250 };
+    const targetKcal = tdee + goalOffset[currentGoal];
+
+    // PFC計算
+    const proteinRate = { cut: 2.4, maintain: 1.8, bulk: 2.0 };
+    const fatRate     = { cut: 0.8, maintain: 1.0, bulk: 1.0 };
+    const protein = Math.round(weight * proteinRate[currentGoal]);
+    const fat     = Math.round(weight * fatRate[currentGoal]);
+    const carbs   = Math.round((targetKcal - protein * 4 - fat * 9) / 4);
+
+    const cfg = { age, height, weight, act, goal: currentGoal, tdee, targetKcal, protein, fat, carbs: Math.max(carbs, 50) };
+    localStorage.setItem('training_cfg', JSON.stringify(cfg));
+
+    // 結果表示
+    const goalLabel = { cut: '🔥 カット目標', maintain: '⚖️ 維持目標', bulk: '💪 バルク目標' };
+    document.getElementById('res-tdee').textContent        = tdee.toLocaleString() + ' kcal';
+    document.getElementById('res-target-kcal').textContent = cfg.targetKcal.toLocaleString() + ' kcal';
+    document.getElementById('res-goal-label').textContent  = goalLabel[currentGoal];
+    document.getElementById('res-protein').textContent     = cfg.protein + 'g';
+    document.getElementById('res-fat').textContent         = cfg.fat + 'g';
+    document.getElementById('res-carbs').textContent       = cfg.carbs + 'g';
+    document.getElementById('res-protein-kcal').textContent = (cfg.protein * 4) + 'kcal';
+    document.getElementById('res-fat-kcal').textContent    = (cfg.fat * 9) + 'kcal';
+    document.getElementById('res-carbs-kcal').textContent  = (cfg.carbs * 4) + 'kcal';
+    document.getElementById('tdee-result-card').style.display = 'block';
+    showToast('設定を保存しました！');
+  }
+
+  function loadSettings() {
+    const cfg = JSON.parse(localStorage.getItem('training_cfg') || 'null');
+    if (!cfg) return;
+    if (cfg.age)    document.getElementById('cfg-age').value    = cfg.age;
+    if (cfg.height) document.getElementById('cfg-height').value = cfg.height;
+    if (cfg.weight) document.getElementById('cfg-weight').value = cfg.weight;
+    if (cfg.act)    document.getElementById('cfg-activity').value = cfg.act;
+    if (cfg.goal)   setGoal(cfg.goal);
+  }
+
+  function updatePFCProgress(meals) {
+    const cfg = JSON.parse(localStorage.getItem('training_cfg') || 'null');
+    const card = document.getElementById('pfc-progress-card');
+    if (!cfg) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    const totals = meals.reduce((acc, m) => ({
+      kcal:    acc.kcal    + (m.calories || 0),
+      protein: acc.protein + (m.protein  || 0),
+      fat:     acc.fat     + (m.fat      || 0),
+      carbs:   acc.carbs   + (m.carbs    || 0),
+    }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+
+    const items = [
+      { key: 'kcal',    actual: Math.round(totals.kcal),    target: cfg.targetKcal, unit: 'kcal' },
+      { key: 'protein', actual: Math.round(totals.protein), target: cfg.protein,    unit: 'g' },
+      { key: 'fat',     actual: Math.round(totals.fat),     target: cfg.fat,        unit: 'g' },
+      { key: 'carbs',   actual: Math.round(totals.carbs),   target: cfg.carbs,      unit: 'g' },
+    ];
+    items.forEach(({ key, actual, target, unit }) => {
+      const pct = Math.min(Math.round(actual / target * 100), 100);
+      document.getElementById('prog-' + key).style.width = pct + '%';
+      document.getElementById('prog-' + key + '-txt').textContent =
+        `${actual}${unit} / ${target}${unit}（${pct}%）`;
+    });
+  }
+
+  loadDashboard();
+  loadSettings();
+</script>
+</body>
+</html>
