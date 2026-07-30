@@ -715,9 +715,9 @@
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
         };
-        img.onerror = reject;
+        img.onerror = () => reject(new Error('画像を読み込めませんでした（HEICなど非対応の形式の可能性があります。JPEG/PNGでお試しください）'));
         reader.onload = ev => img.src = ev.target.result;
-        reader.onerror = reject;
+        reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
         reader.readAsDataURL(file);
       });
 
