@@ -1068,8 +1068,9 @@
       { key: 'carbs',   actual: Math.round(totals.carbs),   target: cfg.carbs,      unit: 'g' },
     ];
     items.forEach(({ key, actual, target, unit }) => {
-      const pct = Math.min(Math.round(actual / target * 100), 100);
-      document.getElementById('prog-' + key).style.width = pct + '%';
+      const pct = target ? Math.round(actual / target * 100) : 0;
+      const barPct = Math.min(pct, 100);
+      document.getElementById('prog-' + key).style.width = barPct + '%';
       document.getElementById('prog-' + key + '-txt').textContent =
         `${actual}${unit} / ${target}${unit}（${pct}%）`;
     });
