@@ -492,6 +492,17 @@
     if (name === 'graph') loadGraphs();
   }
 
+  function friendlyError(error) {
+    const msg = error?.message || '';
+    if (/load failed|failed to fetch|network/i.test(msg)) {
+      return '通信エラーです。ネット接続、またはSupabaseが一時停止(Paused)になってないか確認してください';
+    }
+    if (/row-level security/i.test(msg)) {
+      return '保存の権限エラーです。Supabase側のRLSポリシー設定を確認してください';
+    }
+    return msg || '不明なエラーです';
+  }
+
   function showToast(msg, ok = true) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -555,7 +566,7 @@
     };
     if (!data.date) { showToast('日付は必須です', false); return; }
     const { error } = await sb.from('body_compositions').insert(data);
-    if (error) { showToast('エラー: ' + error.message, false); return; }
+    if (error) { showToast('エラー: ' + friendlyError(error), false); return; }
     showToast('体組成を記録しました！');
     ['b-weight','b-fat','b-muscle','b-visceral','b-bmr','b-age','b-bone','b-water','b-memo'].forEach(id => document.getElementById(id).value = '');
     loadBodyHistory();
@@ -591,7 +602,7 @@
     };
     if (!data.date || !data.exercise) { showToast('日付と種目は必須です', false); return; }
     const { error } = await sb.from('workouts').insert(data);
-    if (error) { showToast('エラー: ' + error.message, false); return; }
+    if (error) { showToast('エラー: ' + friendlyError(error), false); return; }
     showToast('トレーニングを記録しました！');
     ['w-exercise','w-sets','w-reps','w-weight','w-duration','w-memo'].forEach(id => document.getElementById(id).value = '');
     loadWorkoutHistory();
@@ -634,7 +645,7 @@
     }
 
     const { error } = await sb.from('meals').insert(data);
-    if (error) { showToast('エラー: ' + error.message, false); return; }
+    if (error) { showToast('エラー: ' + friendlyError(error), false); return; }
     showToast('食事を記録しました！');
     ['m-food','m-calories','m-protein','m-fat','m-carb','m-memo','m-grams'].forEach(id => document.getElementById(id).value = '');
     selectedFood = null;
@@ -838,7 +849,7 @@
     };
     if (!data.date) { showToast('日付は必須です', false); return; }
     const { error } = await sb.from('sleep_logs').insert(data);
-    if (error) { showToast('エラー: ' + error.message, false); return; }
+    if (error) { showToast('エラー: ' + friendlyError(error), false); return; }
     showToast('睡眠を記録しました！');
     ['s-sleep','s-wake','s-memo'].forEach(id => document.getElementById(id).value = '');
     setStar(0);
