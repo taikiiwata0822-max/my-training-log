@@ -1031,6 +1031,20 @@
     if (cfg.weight) document.getElementById('cfg-weight').value = cfg.weight;
     if (cfg.act)    document.getElementById('cfg-activity').value = cfg.act;
     if (cfg.goal)   setGoal(cfg.goal);
+
+    if (cfg.tdee) {
+      const goalLabel = { cut: '🔥 カット目標', maintain: '⚖️ 維持目標', bulk: '💪 バルク目標' };
+      document.getElementById('res-tdee').textContent        = cfg.tdee.toLocaleString() + ' kcal';
+      document.getElementById('res-target-kcal').textContent = cfg.targetKcal.toLocaleString() + ' kcal';
+      document.getElementById('res-goal-label').textContent  = goalLabel[cfg.goal] || '';
+      document.getElementById('res-protein').textContent     = cfg.protein + 'g';
+      document.getElementById('res-fat').textContent         = cfg.fat + 'g';
+      document.getElementById('res-carbs').textContent       = cfg.carbs + 'g';
+      document.getElementById('res-protein-kcal').textContent = (cfg.protein * 4) + 'kcal';
+      document.getElementById('res-fat-kcal').textContent    = (cfg.fat * 9) + 'kcal';
+      document.getElementById('res-carbs-kcal').textContent  = (cfg.carbs * 4) + 'kcal';
+      document.getElementById('tdee-result-card').style.display = 'block';
+    }
   }
 
   function updatePFCProgress(meals) {
