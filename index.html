@@ -897,8 +897,8 @@
     document.getElementById('stat-workout').textContent = workouts?.length || 0;
     wEl.innerHTML = workouts?.length ? workouts.map(w => `
       <div class="log-item">
-        <div class="log-title">${w.exercise}</div>
-        <div class="log-meta">${[w.sets && w.sets+'セット', w.reps && w.reps+'回', w.weight && w.weight+'kg'].filter(Boolean).join(' / ')}${w.memo ? ' — '+w.memo : ''}</div>
+        <div class="log-title">${w.category ? '['+w.category+'] ' : ''}${w.exercise}</div>
+        <div class="log-meta">${[w.sets && w.sets+'セット', w.reps && w.reps+'回', w.weight && w.weight+'kg', w.duration_min && w.duration_min+'分'].filter(Boolean).join(' / ')}${w.memo ? ' — '+w.memo : ''}</div>
       </div>`).join('') : '<div class="empty">まだ記録なし</div>';
 
     // 食事
