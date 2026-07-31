@@ -715,6 +715,7 @@
 
   function onFoodInput(val) {
     selectedFood = null;
+    lastPhotoBase64 = null;
     document.getElementById('gram-row').style.display = 'none';
     if (!val.trim()) { hideSuggestions(); return; }
     const matches = FOODS_DB.filter(f => f.name.includes(val)).slice(0, 8);
