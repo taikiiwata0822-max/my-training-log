@@ -499,6 +499,11 @@
     if (name === 'graph') loadGraphs();
   }
 
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
   function friendlyError(error) {
     const msg = error?.message || '';
     if (/load failed|failed to fetch|network/i.test(msg)) {
@@ -631,13 +636,13 @@
     el.innerHTML = data.map(w => `
       <div class="log-item">
         <button class="del-btn" onclick="deleteEntry('workouts', ${w.id}, 'loadWorkoutHistory')">✕</button>
-        <div class="log-title">${w.date} ${w.category ? '['+w.category+']' : ''} ${w.exercise}</div>
+        <div class="log-title">${w.date} ${w.category ? '['+escapeHtml(w.category)+']' : ''} ${escapeHtml(w.exercise)}</div>
         <div class="log-meta">${[
           w.sets && w.sets+'セット',
           w.reps && w.reps+'回',
           w.weight && w.weight+'kg',
           w.duration_min && w.duration_min+'分',
-        ].filter(Boolean).join(' / ')}${w.memo ? ' — '+w.memo : ''}</div>
+        ].filter(Boolean).join(' / ')}${w.memo ? ' — '+escapeHtml(w.memo) : ''}</div>
       </div>`).join('');
   }
 
@@ -678,9 +683,9 @@
     el.innerHTML = data.map(m => `
       <div class="log-item meal">
         <button class="del-btn" onclick="deleteEntry('meals', ${m.id}, 'loadMealHistory')">✕</button>
-        ${m.photo_url ? `<img src="${m.photo_url}" alt="" class="meal-thumb">` : ''}
-        <div class="log-title">${m.date} ${m.meal_type}: ${m.food_name}</div>
-        <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+m.memo : ''}</div>
+        ${m.photo_url ? `<img src="${escapeHtml(m.photo_url)}" alt="" class="meal-thumb">` : ''}
+        <div class="log-title">${m.date} ${escapeHtml(m.meal_type)}: ${escapeHtml(m.food_name)}</div>
+        <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+escapeHtml(m.memo) : ''}</div>
       </div>`).join('');
   }
 
@@ -883,7 +888,7 @@
       <div class="log-item sleep">
         <button class="del-btn" onclick="deleteEntry('sleep_logs', ${s.id}, 'loadSleepHistory')">✕</button>
         <div class="log-title">${s.date} ${s.hours ? s.hours+'h' : ''} ${s.quality ? '⭐'.repeat(s.quality) : ''}</div>
-        <div class="log-meta">${[s.sleep_time && '就寝 '+s.sleep_time, s.wake_time && '起床 '+s.wake_time].filter(Boolean).join(' / ')}${s.memo ? ' — '+s.memo : ''}</div>
+        <div class="log-meta">${[s.sleep_time && '就寝 '+s.sleep_time, s.wake_time && '起床 '+s.wake_time].filter(Boolean).join(' / ')}${s.memo ? ' — '+escapeHtml(s.memo) : ''}</div>
       </div>`).join('');
   }
 
@@ -912,8 +917,8 @@
     document.getElementById('stat-workout').textContent = workouts?.length || 0;
     wEl.innerHTML = workouts?.length ? workouts.map(w => `
       <div class="log-item">
-        <div class="log-title">${w.category ? '['+w.category+'] ' : ''}${w.exercise}</div>
-        <div class="log-meta">${[w.sets && w.sets+'セット', w.reps && w.reps+'回', w.weight && w.weight+'kg', w.duration_min && w.duration_min+'分'].filter(Boolean).join(' / ')}${w.memo ? ' — '+w.memo : ''}</div>
+        <div class="log-title">${w.category ? '['+escapeHtml(w.category)+'] ' : ''}${escapeHtml(w.exercise)}</div>
+        <div class="log-meta">${[w.sets && w.sets+'セット', w.reps && w.reps+'回', w.weight && w.weight+'kg', w.duration_min && w.duration_min+'分'].filter(Boolean).join(' / ')}${w.memo ? ' — '+escapeHtml(w.memo) : ''}</div>
       </div>`).join('') : '<div class="empty">まだ記録なし</div>';
 
     // 食事
@@ -924,7 +929,7 @@
     updatePFCProgress(meals || []);
     mEl.innerHTML = meals?.length ? meals.map(m => `
       <div class="log-item meal">
-        <div class="log-title">${m.meal_type}: ${m.food_name}</div>
+        <div class="log-title">${escapeHtml(m.meal_type)}: ${escapeHtml(m.food_name)}</div>
         <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}</div>
       </div>`).join('') : '<div class="empty">まだ記録なし</div>';
 
@@ -937,7 +942,7 @@
       document.getElementById('stat-sleep').textContent = s.hours ? s.hours+'h' : '-';
       sEl.innerHTML = `<div class="log-item sleep">
         <div class="log-title">${s.sleep_time || '?'} 〜 ${s.wake_time || '?'}（${s.hours ? s.hours+'時間' : '-'}）</div>
-        <div class="log-meta">${s.quality ? '⭐'.repeat(s.quality) : ''}${s.memo ? ' '+s.memo : ''}</div>
+        <div class="log-meta">${s.quality ? '⭐'.repeat(s.quality) : ''}${s.memo ? ' '+escapeHtml(s.memo) : ''}</div>
       </div>`;
     } else {
       document.getElementById('stat-sleep').textContent = '-';
