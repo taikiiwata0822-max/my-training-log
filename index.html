@@ -428,8 +428,12 @@
     <div class="chart-wrap"><canvas id="body-chart"></canvas></div>
   </div>
   <div class="card">
-    <h2>📈 トレーニングボリューム</h2>
+    <h2>📈 トレーニングボリューム（重量あり種目）</h2>
     <div class="chart-wrap"><canvas id="workout-chart"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>📈 トレーニング時間（サーキット・体幹・有酸素など）</h2>
+    <div class="chart-wrap"><canvas id="workout-duration-chart"></canvas></div>
   </div>
   <div class="card">
     <h2>📈 摂取カロリー</h2>
@@ -458,6 +462,7 @@
   let selectedStar = 0;
   let bodyChartInstance = null;
   let workoutChartInstance = null;
+  let workoutDurationChartInstance = null;
   let calorieChartInstance = null;
   let sleepChartInstance = null;
   let bodyData = [];
@@ -933,17 +938,26 @@
       showBodyChart(currentBodyKey, null);
     }
 
-    // トレーニングボリューム（日別）
-    const { data: wd } = await sb.from('workouts').select('date, sets, reps, weight').order('date').limit(100);
+    // トレーニングボリューム（日別、重量ありの種目のみ）
+    const { data: wd } = await sb.from('workouts').select('date, sets, reps, weight, duration_min').order('date').limit(100);
     if (wd?.length) {
       const volMap = {};
-      wd.forEach(w => {
-        const vol = (w.sets || 1) * (w.reps || 1) * (w.weight || 0);
+      wd.filter(w => w.weight).forEach(w => {
+        const vol = (w.sets || 1) * (w.reps || 1) * w.weight;
         volMap[w.date] = (volMap[w.date] || 0) + vol;
       });
       const wLabels = Object.keys(volMap).map(d => d.slice(5));
       const wVals = Object.values(volMap);
       workoutChartInstance = makeChart('workout-chart', wLabels, wVals, 'ボリューム(kg)', '#4f46e5', workoutChartInstance);
+
+      // トレーニング時間（日別、時間で測る種目のみ）
+      const durMap = {};
+      wd.filter(w => w.duration_min).forEach(w => {
+        durMap[w.date] = (durMap[w.date] || 0) + w.duration_min;
+      });
+      const dLabels = Object.keys(durMap).map(d => d.slice(5));
+      const dVals = Object.values(durMap);
+      workoutDurationChartInstance = makeChart('workout-duration-chart', dLabels, dVals, '時間(分)', '#f97316', workoutDurationChartInstance);
     }
 
     // カロリー（日別）
