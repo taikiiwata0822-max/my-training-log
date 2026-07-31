@@ -3,9 +3,19 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const { image, mimeType } = JSON.parse(event.body);
+  let image, mimeType;
+  try {
+    ({ image, mimeType } = JSON.parse(event.body));
+  } catch {
+    return { statusCode: 400, body: JSON.stringify({ error: 'リクエストの形式が不正です' }) };
+  }
+  if (!image || !mimeType) {
+    return { statusCode: 400, body: JSON.stringify({ error: '画像データがありません' }) };
+  }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  let response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -52,7 +62,10 @@ exports.handler = async (event) => {
         ]
       }]
     })
-  });
+    });
+  } catch (e) {
+    return { statusCode: 502, body: JSON.stringify({ error: 'AI APIへの通信に失敗しました: ' + e.message }) };
+  }
 
   const result = await response.json();
 
