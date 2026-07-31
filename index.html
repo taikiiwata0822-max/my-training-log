@@ -405,6 +405,10 @@
     <textarea id="s-memo" placeholder="深く眠れたか、夢を見たかなど"></textarea>
     <button class="btn" onclick="saveSleep()">記録する</button>
   </div>
+  <div class="card">
+    <h2>記録履歴</h2>
+    <div id="sleep-history"><div class="empty">まだ記録なし</div></div>
+  </div>
 </div>
 
 <!-- グラフ -->
@@ -484,6 +488,7 @@
     if (name === 'body') loadBodyHistory();
     if (name === 'workout') loadWorkoutHistory();
     if (name === 'meal') loadMealHistory();
+    if (name === 'sleep') loadSleepHistory();
     if (name === 'graph') loadGraphs();
   }
 
@@ -837,6 +842,18 @@
     showToast('睡眠を記録しました！');
     ['s-sleep','s-wake','s-memo'].forEach(id => document.getElementById(id).value = '');
     setStar(0);
+    loadSleepHistory();
+  }
+
+  async function loadSleepHistory() {
+    const { data } = await sb.from('sleep_logs').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(30);
+    const el = document.getElementById('sleep-history');
+    if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
+    el.innerHTML = data.map(s => `
+      <div class="log-item sleep">
+        <div class="log-title">${s.date} ${s.hours ? s.hours+'h' : ''} ${s.quality ? '⭐'.repeat(s.quality) : ''}</div>
+        <div class="log-meta">${[s.sleep_time && '就寝 '+s.sleep_time, s.wake_time && '起床 '+s.wake_time].filter(Boolean).join(' / ')}${s.memo ? ' — '+s.memo : ''}</div>
+      </div>`).join('');
   }
 
   async function loadDashboard() {
