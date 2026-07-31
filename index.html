@@ -287,8 +287,16 @@
     <h2>💪 トレーニング記録</h2>
     <label>日付</label>
     <input type="date" id="w-date">
+    <label>種目タイプ</label>
+    <select id="w-category">
+      <option value="筋トレ">筋トレ</option>
+      <option value="サーキット">サーキット</option>
+      <option value="体幹">体幹</option>
+      <option value="有酸素">有酸素</option>
+      <option value="その他">その他</option>
+    </select>
     <label>種目</label>
-    <input type="text" id="w-exercise" placeholder="例: ベンチプレス、スクワット">
+    <input type="text" id="w-exercise" placeholder="例: ベンチプレス、バーピー、プランク">
     <div class="row3">
       <div>
         <label>セット数</label>
@@ -303,6 +311,8 @@
         <input type="number" id="w-weight" placeholder="60">
       </div>
     </div>
+    <label>時間(分)</label>
+    <input type="number" id="w-duration" placeholder="サーキット・体幹・有酸素など時間で測る場合">
     <label>メモ</label>
     <textarea id="w-memo" placeholder="調子、気づきなど"></textarea>
     <button class="btn" onclick="saveWorkout()">記録する</button>
@@ -555,17 +565,19 @@
   async function saveWorkout() {
     const data = {
       date: document.getElementById('w-date').value,
+      category: document.getElementById('w-category').value,
       exercise: document.getElementById('w-exercise').value,
       sets: parseInt(document.getElementById('w-sets').value) || null,
       reps: parseInt(document.getElementById('w-reps').value) || null,
       weight: parseFloat(document.getElementById('w-weight').value) || null,
+      duration_min: parseInt(document.getElementById('w-duration').value) || null,
       memo: document.getElementById('w-memo').value || null,
     };
     if (!data.date || !data.exercise) { showToast('日付と種目は必須です', false); return; }
     const { error } = await sb.from('workouts').insert(data);
     if (error) { showToast('エラー: ' + error.message, false); return; }
     showToast('トレーニングを記録しました！');
-    ['w-exercise','w-sets','w-reps','w-weight','w-memo'].forEach(id => document.getElementById(id).value = '');
+    ['w-exercise','w-sets','w-reps','w-weight','w-duration','w-memo'].forEach(id => document.getElementById(id).value = '');
   }
 
   async function saveMeal() {
