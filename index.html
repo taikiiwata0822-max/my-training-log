@@ -370,6 +370,10 @@
     <textarea id="m-memo" placeholder="気づきなど"></textarea>
     <button class="btn" onclick="saveMeal()">記録する</button>
   </div>
+  <div class="card">
+    <h2>記録履歴</h2>
+    <div id="meal-history"><div class="empty">まだ記録なし</div></div>
+  </div>
 </div>
 
 <!-- 睡眠記録 -->
@@ -478,6 +482,7 @@
     if (name === 'dashboard') loadDashboard();
     if (name === 'body') loadBodyHistory();
     if (name === 'workout') loadWorkoutHistory();
+    if (name === 'meal') loadMealHistory();
     if (name === 'graph') loadGraphs();
   }
 
@@ -620,6 +625,18 @@
     ['m-food','m-calories','m-protein','m-fat','m-carb','m-memo','m-grams'].forEach(id => document.getElementById(id).value = '');
     selectedFood = null;
     document.getElementById('gram-row').style.display = 'none';
+    loadMealHistory();
+  }
+
+  async function loadMealHistory() {
+    const { data } = await sb.from('meals').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(30);
+    const el = document.getElementById('meal-history');
+    if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
+    el.innerHTML = data.map(m => `
+      <div class="log-item meal">
+        <div class="log-title">${m.date} ${m.meal_type}: ${m.food_name}</div>
+        <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+m.memo : ''}</div>
+      </div>`).join('');
   }
 
   // ── 食品DB（文部科学省 食品成分表ベース、100gあたり） ──
