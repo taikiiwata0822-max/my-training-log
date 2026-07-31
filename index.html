@@ -317,6 +317,10 @@
     <textarea id="w-memo" placeholder="調子、気づきなど"></textarea>
     <button class="btn" onclick="saveWorkout()">記録する</button>
   </div>
+  <div class="card">
+    <h2>記録履歴</h2>
+    <div id="workout-history"><div class="empty">まだ記録なし</div></div>
+  </div>
 </div>
 
 <!-- 食事記録 -->
@@ -473,6 +477,7 @@
     if (btn) btn.classList.add('active');
     if (name === 'dashboard') loadDashboard();
     if (name === 'body') loadBodyHistory();
+    if (name === 'workout') loadWorkoutHistory();
     if (name === 'graph') loadGraphs();
   }
 
@@ -578,6 +583,23 @@
     if (error) { showToast('エラー: ' + error.message, false); return; }
     showToast('トレーニングを記録しました！');
     ['w-exercise','w-sets','w-reps','w-weight','w-duration','w-memo'].forEach(id => document.getElementById(id).value = '');
+    loadWorkoutHistory();
+  }
+
+  async function loadWorkoutHistory() {
+    const { data } = await sb.from('workouts').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(30);
+    const el = document.getElementById('workout-history');
+    if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
+    el.innerHTML = data.map(w => `
+      <div class="log-item">
+        <div class="log-title">${w.date} ${w.category ? '['+w.category+']' : ''} ${w.exercise}</div>
+        <div class="log-meta">${[
+          w.sets && w.sets+'セット',
+          w.reps && w.reps+'回',
+          w.weight && w.weight+'kg',
+          w.duration_min && w.duration_min+'分',
+        ].filter(Boolean).join(' / ')}${w.memo ? ' — '+w.memo : ''}</div>
+      </div>`).join('');
   }
 
   async function saveMeal() {
