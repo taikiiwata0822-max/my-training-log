@@ -29,7 +29,9 @@
     .btn:hover { background: #4338ca; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #22c55e; color: white; padding: 10px 24px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
     .toast.show { opacity: 1; }
-    .log-item { border-left: 3px solid #4f46e5; padding: 10px 12px; margin-bottom: 10px; background: #f8f8ff; border-radius: 0 8px 8px 0; }
+    .log-item { position: relative; border-left: 3px solid #4f46e5; padding: 10px 36px 10px 12px; margin-bottom: 10px; background: #f8f8ff; border-radius: 0 8px 8px 0; }
+    .log-item .del-btn { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; border-radius: 50%; background: #fff; color: #999; font-size: 14px; line-height: 1; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .log-item .del-btn:hover { color: #ef4444; }
     .log-item.meal { border-color: #f59e0b; background: #fffbeb; }
     .log-item.sleep { border-color: #06b6d4; background: #ecfeff; }
     .log-item.body { border-color: #10b981; background: #ecfdf5; }
@@ -508,6 +510,14 @@
     return msg || '不明なエラーです';
   }
 
+  async function deleteEntry(table, id, reloadFnName) {
+    if (!confirm('この記録を削除しますか？')) return;
+    const { error } = await sb.from(table).delete().eq('id', id);
+    if (error) { showToast('エラー: ' + friendlyError(error), false); return; }
+    showToast('削除しました');
+    window[reloadFnName]();
+  }
+
   function showToast(msg, ok = true) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -583,6 +593,7 @@
     if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
     el.innerHTML = data.map(d => `
       <div class="log-item body">
+        <button class="del-btn" onclick="deleteEntry('body_compositions', ${d.id}, 'loadBodyHistory')">✕</button>
         <div class="log-title">${d.date}</div>
         <div class="log-meta">${[
           d.weight && '体重 '+d.weight+'kg',
@@ -619,6 +630,7 @@
     if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
     el.innerHTML = data.map(w => `
       <div class="log-item">
+        <button class="del-btn" onclick="deleteEntry('workouts', ${w.id}, 'loadWorkoutHistory')">✕</button>
         <div class="log-title">${w.date} ${w.category ? '['+w.category+']' : ''} ${w.exercise}</div>
         <div class="log-meta">${[
           w.sets && w.sets+'セット',
@@ -665,6 +677,7 @@
     if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
     el.innerHTML = data.map(m => `
       <div class="log-item meal">
+        <button class="del-btn" onclick="deleteEntry('meals', ${m.id}, 'loadMealHistory')">✕</button>
         ${m.photo_url ? `<img src="${m.photo_url}" alt="" class="meal-thumb">` : ''}
         <div class="log-title">${m.date} ${m.meal_type}: ${m.food_name}</div>
         <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+m.memo : ''}</div>
@@ -868,6 +881,7 @@
     if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
     el.innerHTML = data.map(s => `
       <div class="log-item sleep">
+        <button class="del-btn" onclick="deleteEntry('sleep_logs', ${s.id}, 'loadSleepHistory')">✕</button>
         <div class="log-title">${s.date} ${s.hours ? s.hours+'h' : ''} ${s.quality ? '⭐'.repeat(s.quality) : ''}</div>
         <div class="log-meta">${[s.sleep_time && '就寝 '+s.sleep_time, s.wake_time && '起床 '+s.wake_time].filter(Boolean).join(' / ')}${s.memo ? ' — '+s.memo : ''}</div>
       </div>`).join('');
