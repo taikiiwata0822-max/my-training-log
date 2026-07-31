@@ -35,6 +35,7 @@
     .log-item.body { border-color: #10b981; background: #ecfdf5; }
     .log-item .log-title { font-weight: 600; font-size: 14px; }
     .log-item .log-meta { font-size: 12px; color: #888; margin-top: 3px; }
+    .meal-thumb { display: block; width: 100%; max-width: 220px; border-radius: 8px; margin-bottom: 6px; }
     .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
     .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
     .stat-card { background: white; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
@@ -619,11 +620,20 @@
       memo: document.getElementById('m-memo').value || null,
     };
     if (!data.date || !data.food_name) { showToast('日付と食べたものは必須です', false); return; }
+
+    if (lastPhotoBase64) {
+      const path = `${data.date}/${Date.now()}.jpg`;
+      const bytes = Uint8Array.from(atob(lastPhotoBase64), c => c.charCodeAt(0));
+      const { error: upErr } = await sb.storage.from('meal-photos').upload(path, bytes, { contentType: 'image/jpeg' });
+      if (!upErr) data.photo_url = sb.storage.from('meal-photos').getPublicUrl(path).data.publicUrl;
+    }
+
     const { error } = await sb.from('meals').insert(data);
     if (error) { showToast('エラー: ' + error.message, false); return; }
     showToast('食事を記録しました！');
     ['m-food','m-calories','m-protein','m-fat','m-carb','m-memo','m-grams'].forEach(id => document.getElementById(id).value = '');
     selectedFood = null;
+    lastPhotoBase64 = null;
     document.getElementById('gram-row').style.display = 'none';
     loadMealHistory();
   }
@@ -634,6 +644,7 @@
     if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
     el.innerHTML = data.map(m => `
       <div class="log-item meal">
+        ${m.photo_url ? `<img src="${m.photo_url}" alt="" class="meal-thumb">` : ''}
         <div class="log-title">${m.date} ${m.meal_type}: ${m.food_name}</div>
         <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+m.memo : ''}</div>
       </div>`).join('');
@@ -679,6 +690,7 @@
 
   let selectedFood = null;
   let suggestionIndex = -1;
+  let lastPhotoBase64 = null;
 
   function onFoodInput(val) {
     selectedFood = null;
@@ -788,6 +800,7 @@
       if (data.carbs)     document.getElementById('m-carb').value     = data.carbs;
       if (data.memo)      document.getElementById('m-memo').value     = data.memo;
       selectedFood = null;
+      lastPhotoBase64 = base64;
       document.getElementById('gram-row').style.display = 'none';
       showToast('写真から食事を解析しました！');
     } catch (err) {
