@@ -454,7 +454,11 @@
   const SUPABASE_KEY = 'sb_publishable_oW2kvJqDWdsJxgi7ic-dqw_4S8RZosr';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const today = new Date().toISOString().split('T')[0];
+  function localDateStr(d = new Date()) {
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().split('T')[0];
+  }
+  const today = localDateStr();
   document.getElementById('today-label').textContent = new Date().toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
 
   ['w-date', 'm-date', 's-date', 'b-date'].forEach(id => {
@@ -934,7 +938,7 @@
       </div>`).join('') : '<div class="empty">まだ記録なし</div>';
 
     // 睡眠
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const yesterday = localDateStr(new Date(Date.now() - 86400000));
     const { data: sleeps } = await sb.from('sleep_logs').select('*').eq('date', yesterday).order('created_at');
     const sEl = document.getElementById('today-sleep');
     if (sleeps?.length) {
