@@ -694,7 +694,7 @@
     el.innerHTML = data.map(m => `
       <div class="log-item meal">
         <button class="del-btn" onclick="deleteEntry('meals', ${m.id}, 'loadMealHistory', ${m.photo_url ? `'${escapeHtml(m.photo_url)}'` : 'null'})">✕</button>
-        ${m.photo_url ? `<img src="${escapeHtml(m.photo_url)}" alt="" class="meal-thumb">` : ''}
+        ${m.photo_url ? `<img src="${escapeHtml(m.photo_url)}" alt="" class="meal-thumb" loading="lazy">` : ''}
         <div class="log-title">${m.date} ${escapeHtml(m.meal_type)}: ${escapeHtml(m.food_name)}</div>
         <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+escapeHtml(m.memo) : ''}</div>
       </div>`).join('');
