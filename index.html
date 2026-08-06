@@ -519,10 +519,17 @@
     return msg || '不明なエラーです';
   }
 
-  async function deleteEntry(table, id, reloadFnName) {
+  async function deleteEntry(table, id, reloadFnName, photoUrl) {
     if (!confirm('この記録を削除しますか？')) return;
     const { error } = await sb.from(table).delete().eq('id', id);
     if (error) { showToast('エラー: ' + friendlyError(error), false); return; }
+    if (photoUrl) {
+      const marker = '/public/meal-photos/';
+      const idx = photoUrl.indexOf(marker);
+      if (idx !== -1) {
+        sb.storage.from('meal-photos').remove([photoUrl.slice(idx + marker.length)]).catch(() => {});
+      }
+    }
     showToast('削除しました');
     window[reloadFnName]();
   }
@@ -686,7 +693,7 @@
     if (!data?.length) { el.innerHTML = '<div class="empty">まだ記録なし</div>'; return; }
     el.innerHTML = data.map(m => `
       <div class="log-item meal">
-        <button class="del-btn" onclick="deleteEntry('meals', ${m.id}, 'loadMealHistory')">✕</button>
+        <button class="del-btn" onclick="deleteEntry('meals', ${m.id}, 'loadMealHistory', ${m.photo_url ? `'${escapeHtml(m.photo_url)}'` : 'null'})">✕</button>
         ${m.photo_url ? `<img src="${escapeHtml(m.photo_url)}" alt="" class="meal-thumb">` : ''}
         <div class="log-title">${m.date} ${escapeHtml(m.meal_type)}: ${escapeHtml(m.food_name)}</div>
         <div class="log-meta">${m.calories ? m.calories+'kcal' : ''}${m.memo ? ' — '+escapeHtml(m.memo) : ''}</div>
