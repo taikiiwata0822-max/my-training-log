@@ -24,7 +24,7 @@ exports.handler = async (event) => {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-5',
-      max_tokens: 512,
+      max_tokens: 1024,
       messages: [{
         role: 'user',
         content: [
